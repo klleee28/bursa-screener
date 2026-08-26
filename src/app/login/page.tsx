@@ -1,6 +1,9 @@
 import { LoginForm } from "@/components/auth/login-form"
+import { hasSupabaseEnv } from "@/lib/supabase/config"
 
 export default function LoginPage() {
+  const isConfigured = hasSupabaseEnv()
+
   return (
     <main className="grid min-h-screen bg-background lg:grid-cols-[minmax(0,1fr)_minmax(460px,0.72fr)]">
       <section className="relative hidden overflow-hidden border-r border-border bg-primary px-16 py-14 text-primary-foreground lg:flex lg:flex-col lg:justify-between">
@@ -16,7 +19,12 @@ export default function LoginPage() {
           <div className="brand-lockup mb-16 lg:hidden"><span className="brand-mark">B</span><span>Bursa Filter</span></div>
           <h2 className="font-display text-5xl font-semibold tracking-[-0.035em]">Welcome back</h2>
           <p className="mt-3 mb-10 text-sm leading-6 text-muted-foreground">Sign in to review today&apos;s policy-compliant universe.</p>
-          <LoginForm />
+          {!isConfigured && (
+            <div role="alert" className="mb-7 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950">
+              Supabase is not configured for this deployment. Add <code>NEXT_PUBLIC_SUPABASE_URL</code> and <code>NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY</code> in Vercel, then redeploy.
+            </div>
+          )}
+          <LoginForm disabled={!isConfigured} />
           <p className="mt-8 text-xs leading-5 text-muted-foreground">Access is limited to the account configured in Supabase Auth.</p>
         </div>
       </section>

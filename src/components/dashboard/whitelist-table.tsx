@@ -13,6 +13,7 @@ import {
 import { ArrowDownIcon, ArrowUpDownIcon, ArrowUpIcon, ChevronLeftIcon, ChevronRightIcon, SearchIcon } from "lucide-react"
 
 import { MultiSelectFilter } from "@/components/dashboard/multi-select-filter"
+import { SavedTickerAction } from "@/components/saved/saved-ticker-action"
 import { Button } from "@/components/ui/button"
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -28,28 +29,47 @@ const features = tableFeatures({
 })
 
 const columnHelper = createColumnHelper<typeof features, WhitelistRow>()
-const columns = columnHelper.columns([
-  columnHelper.accessor("ticker", { header: "Ticker" }),
-  columnHelper.accessor("name", { header: "Company", cell: ({ getValue }) => <span className="font-medium">{getValue()}</span> }),
-  columnHelper.accessor("market", { header: "Market" }),
-  columnHelper.accessor("sector", { header: "Sector" }),
-  columnHelper.accessor("close_price", { header: "Close", sortUndefined: "last", cell: ({ getValue }) => <span className="tabular-nums">{formatPrice(getValue())}</span> }),
-  columnHelper.accessor("change_pct", {
-    header: "1D change",
-    sortUndefined: "last",
-    cell: ({ getValue }) => {
-      const value = getValue()
-      return <span className={cn("tabular-nums", value != null && value > 0 ? "text-positive" : value != null && value < 0 ? "text-destructive" : "text-muted-foreground")}>{formatPercent(value)}</span>
-    },
-  }),
-  columnHelper.accessor("volume", { header: "Volume", sortUndefined: "last", cell: ({ getValue }) => <span className="tabular-nums">{formatNumber(getValue())}</span> }),
-])
+const numericColumns = ["close_price", "change_pct", "volume"]
+const emptySavedTickerIds: string[] = []
 
-export function WhitelistTable({ rows }: { rows: WhitelistRow[] }) {
+export function WhitelistTable({
+  rows,
+  savedTickerIds = emptySavedTickerIds,
+  savedFeatureReady = true,
+  mode = "whitelist",
+}: {
+  rows: WhitelistRow[]
+  savedTickerIds?: string[]
+  savedFeatureReady?: boolean
+  mode?: "whitelist" | "saved"
+}) {
   const [search, setSearch] = useState("")
   const deferredSearch = useDeferredValue(search)
   const [markets, setMarkets] = useState<string[]>([])
   const [sectors, setSectors] = useState<string[]>([])
+
+  const savedTickers = useMemo(() => new Set(savedTickerIds), [savedTickerIds])
+  const columns = useMemo(() => columnHelper.columns([
+    columnHelper.accessor("ticker", { header: "Ticker" }),
+    columnHelper.accessor("name", { header: "Company", cell: ({ getValue }) => <span className="font-medium">{getValue()}</span> }),
+    columnHelper.accessor("market", { header: "Market" }),
+    columnHelper.accessor("sector", { header: "Sector" }),
+    columnHelper.accessor("close_price", { header: "Close", sortUndefined: "last", cell: ({ getValue }) => <span className="tabular-nums">{formatPrice(getValue())}</span> }),
+    columnHelper.accessor("change_pct", {
+      header: "1D change",
+      sortUndefined: "last",
+      cell: ({ getValue }) => {
+        const value = getValue()
+        return <span className={cn("tabular-nums", value != null && value > 0 ? "text-positive" : value != null && value < 0 ? "text-destructive" : "text-muted-foreground")}>{formatPercent(value)}</span>
+      },
+    }),
+    columnHelper.accessor("volume", { header: "Volume", sortUndefined: "last", cell: ({ getValue }) => <span className="tabular-nums">{formatNumber(getValue())}</span> }),
+    columnHelper.display({
+      id: "saved",
+      header: mode === "saved" ? "Remove" : "Save",
+      cell: ({ row }) => <SavedTickerAction ticker={row.original.ticker} saved={savedTickers.has(row.original.ticker)} disabled={!savedFeatureReady} />,
+    }),
+  ]), [mode, savedFeatureReady, savedTickers])
 
   const marketOptions = useMemo(() => Array.from(new Set(rows.map((row) => row.market))).sort(), [rows])
   const sectorOptions = useMemo(() => Array.from(new Set(rows.map((row) => row.sector))).sort(), [rows])
@@ -76,7 +96,7 @@ export function WhitelistTable({ rows }: { rows: WhitelistRow[] }) {
   const pageEnd = Math.min(filteredRows.length, pageStart + table.state.pagination.pageSize - 1)
 
   return (
-    <section aria-label="Whitelisted securities" className="mt-12">
+    <section aria-label={mode === "saved" ? "Saved securities" : "Whitelisted securities"} className="mt-12">
       <div className="table-toolbar">
         <InputGroup className="search-control">
           <InputGroupAddon><SearchIcon /></InputGroupAddon>
@@ -97,12 +117,14 @@ export function WhitelistTable({ rows }: { rows: WhitelistRow[] }) {
                   {headerGroup.headers.map((header) => {
                     const sorted = header.column.getIsSorted()
                     return (
-                      <TableHead key={header.id} className={cn(["close_price", "change_pct", "volume"].includes(header.column.id) && "text-right")}>
-                        {header.isPlaceholder ? null : (
-                          <button type="button" className={cn("sort-button", ["close_price", "change_pct", "volume"].includes(header.column.id) && "ml-auto")} onClick={header.column.getToggleSortingHandler()}>
+                      <TableHead key={header.id} className={cn((numericColumns.includes(header.column.id) || header.column.id === "saved") && "text-right")}>
+                        {header.isPlaceholder ? null : header.column.getCanSort() ? (
+                          <button type="button" className={cn("sort-button", (numericColumns.includes(header.column.id) || header.column.id === "saved") && "ml-auto")} onClick={header.column.getToggleSortingHandler()} disabled={!header.column.getCanSort()}>
                             <table.FlexRender header={header} />
                             {sorted === "asc" ? <ArrowUpIcon /> : sorted === "desc" ? <ArrowDownIcon /> : <ArrowUpDownIcon />}
                           </button>
+                        ) : (
+                          <span className="ml-auto"><table.FlexRender header={header} /></span>
                         )}
                       </TableHead>
                     )
@@ -113,10 +135,10 @@ export function WhitelistTable({ rows }: { rows: WhitelistRow[] }) {
             <TableBody>
               {table.getRowModel().rows.length ? table.getRowModel().rows.map((row) => (
                 <TableRow key={row.id}>
-                  {row.getAllCells().map((cell) => <TableCell key={cell.id} className={cn(["close_price", "change_pct", "volume"].includes(cell.column.id) && "text-right")}><table.FlexRender cell={cell} /></TableCell>)}
+                  {row.getAllCells().map((cell) => <TableCell key={cell.id} className={cn((numericColumns.includes(cell.column.id) || cell.column.id === "saved") && "text-right")}><table.FlexRender cell={cell} /></TableCell>)}
                 </TableRow>
               )) : (
-                <TableRow><TableCell colSpan={columns.length} className="h-36 text-center text-muted-foreground">No securities match these filters.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={columns.length} className="h-36 text-center text-muted-foreground">{mode === "saved" && rows.length === 0 ? "No tickers saved yet. Save one from the whitelist." : "No securities match these filters."}</TableCell></TableRow>
               )}
             </TableBody>
           </Table>

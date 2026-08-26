@@ -21,6 +21,15 @@ export type Database = {
         Update: { ticker?: string; date?: string; close_price?: number | null; change_pct?: number | null; volume?: number | null; market_cap?: number | null }
         Relationships: [{ foreignKeyName: "eod_data_ticker_fkey"; columns: ["ticker"]; isOneToOne: false; referencedRelation: "bursa_master"; referencedColumns: ["ticker"] }]
       }
+      saved_tickers: {
+        Row: { user_id: string; ticker: string; created_at: string }
+        Insert: { user_id: string; ticker: string; created_at?: string }
+        Update: { user_id?: string; ticker?: string; created_at?: string }
+        Relationships: [
+          { foreignKeyName: "saved_tickers_user_id_fkey"; columns: ["user_id"]; isOneToOne: false; referencedRelation: "users"; referencedColumns: ["id"] },
+          { foreignKeyName: "saved_tickers_ticker_fkey"; columns: ["ticker"]; isOneToOne: false; referencedRelation: "bursa_master"; referencedColumns: ["ticker"] },
+        ]
+      }
     }
     Views: Record<string, never>
     Functions: Record<string, never>

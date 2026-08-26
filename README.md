@@ -21,7 +21,7 @@ A private, production-oriented Bursa Malaysia systematic screener. The Next.js a
 
 2. Copy `.env.example` to `.env.local` and set the Supabase project URL and publishable key.
 
-3. Apply [`supabase/migrations/202608260001_initial_schema.sql`](supabase/migrations/202608260001_initial_schema.sql) in the Supabase SQL editor or through the Supabase CLI. This file contains the exact table, constraint, index, grant, RLS, and policy SQL.
+3. Apply the SQL files in [`supabase/migrations`](supabase/migrations) in filename order through the Supabase SQL editor or CLI. They contain the tables, constraints, indexes, grants, RLS, and policies, including the private per-user saved-ticker list.
 
 4. In Supabase Authentication:
 
@@ -29,7 +29,7 @@ A private, production-oriented Bursa Malaysia systematic screener. The Next.js a
    - Disable public sign-ups.
    - Keep the service-role key server-side only.
 
-5. Populate `bursa_master` with ordinary-share classification data. Tickers are stored without `.KL`; the ETL adds the Yahoo Finance suffix.
+5. Run the GitHub Actions workflow once, or run `python scripts/sync_bursa_master.py` with service-role credentials. Tickers are stored without `.KL`; the EOD job adds the Yahoo Finance suffix.
 
 6. Start the app:
 
@@ -48,15 +48,20 @@ Add these repository Actions secrets:
 
 The workflow at [`.github/workflows/fetch_eod.yml`](.github/workflows/fetch_eod.yml) runs daily and can also be dispatched manually. It:
 
-1. Pages through ordinary tickers in `bursa_master`.
-2. Downloads five calendar days in yfinance batches so the last-session percentage change can be calculated across weekends and holidays.
-3. Fetches current market cap with bounded concurrency.
-4. Cleans non-finite values and upserts `(ticker, date)` rows in batches.
+1. Fetches and validates the current Main/ACE roster, excludes non-ordinary instrument categories, and synchronizes `bursa_master`.
+2. Pages through ordinary tickers in `bursa_master`.
+3. Downloads five calendar days in yfinance batches so the last-session percentage change can be calculated across weekends and holidays.
+4. Fetches current market cap with bounded concurrency.
+5. Cleans non-finite values and upserts `(ticker, date)` rows in batches.
+
+The master source defaults to KLSE Screener's public roster. Set the optional repository Actions variable `BURSA_MASTER_SOURCE_URL` to replace it without changing code. The sync refuses to modify production when fewer than 800 eligible securities are returned.
 
 Run it locally with service-role credentials in your environment:
 
 ```bash
 python -m pip install --requirement scripts/requirements.txt
+python scripts/sync_bursa_master.py --dry-run
+python scripts/sync_bursa_master.py
 python scripts/fetch_bursa_eod.py
 ```
 
@@ -73,7 +78,7 @@ Do **not** add `SUPABASE_SERVICE_ROLE_KEY` to Vercel or prefix it with `NEXT_PUB
 
 - `src/proxy.ts` performs the optimistic route redirect and refreshes Supabase auth cookies.
 - Every Server Action independently verifies the authenticated user before mutation.
-- RLS is enabled and forced on all three public tables.
+- RLS is enabled and forced on all four public tables. Saved tickers are additionally scoped to `auth.uid()`.
 - `anon` receives no table privileges; `authenticated` is covered by explicit policies.
 - The GitHub Actions service role uses Supabase's `BYPASSRLS` capability and is never exposed to the browser.
 
@@ -83,5 +88,5 @@ Do **not** add `SUPABASE_SERVICE_ROLE_KEY` to Vercel or prefix it with `NEXT_PUB
 npm run lint
 npm run typecheck
 npm run build
-python -m py_compile scripts/fetch_bursa_eod.py
+python -m compileall scripts
 ```

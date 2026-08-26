@@ -10,7 +10,10 @@ export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request })
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  if (!url || !key) return NextResponse.redirect(new URL("/login", request.url))
+  if (!url || !key) {
+    if (request.nextUrl.pathname === "/login") return response
+    return NextResponse.redirect(new URL("/login", request.url))
+  }
 
   const supabase = createServerClient<Database>(url, key, {
     cookies: {

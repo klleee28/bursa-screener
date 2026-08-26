@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { CircleUserRoundIcon, ListFilterIcon, LogOutIcon, ShieldMinusIcon } from "lucide-react"
+import { BookmarkIcon, ListFilterIcon, LogOutIcon, ShieldMinusIcon } from "lucide-react"
 
 import { signOutAction } from "@/app/actions"
 import { Button } from "@/components/ui/button"
@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils"
 
 const navigation = [
   { href: "/", label: "Whitelist", icon: ListFilterIcon },
+  { href: "/saved", label: "Saved", icon: BookmarkIcon },
   { href: "/blacklist", label: "Blacklist", icon: ShieldMinusIcon },
 ]
 
@@ -33,7 +34,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           })}
         </nav>
         <div className="mt-auto hidden flex-col gap-1 lg:flex">
-          <div className="user-row"><CircleUserRoundIcon /><span>Trading Desk</span></div>
           <form action={signOutAction}>
             <Button type="submit" variant="ghost" className="w-full justify-start">
               <LogOutIcon data-icon="inline-start" />Sign out

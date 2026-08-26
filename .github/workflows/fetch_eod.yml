@@ -34,4 +34,7 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: python scripts/fetch_bursa_eod.py
+          BURSA_MASTER_SOURCE_URL: ${{ vars.BURSA_MASTER_SOURCE_URL }}
+        run: |
+          python scripts/sync_bursa_master.py
+          python scripts/fetch_bursa_eod.py

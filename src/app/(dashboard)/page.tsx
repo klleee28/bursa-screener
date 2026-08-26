@@ -12,7 +12,7 @@ export default async function DashboardPage() {
         <div><p>Blacklisted</p><strong className="text-destructive">{data.blacklisted.toLocaleString("en-MY")}</strong></div>
         <div><p>Whitelisted</p><strong>{data.whitelisted.toLocaleString("en-MY")}</strong></div>
       </section>
-      <WhitelistTable rows={data.rows} />
+      <WhitelistTable rows={data.rows} savedTickerIds={data.savedTickerIds} savedFeatureReady={data.savedFeatureReady} />
     </div>
   )
 }

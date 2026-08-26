@@ -39,10 +39,18 @@ export type DashboardData = {
   whitelisted: number
   latestDate: string | null
   rows: WhitelistRow[]
+  savedTickerIds: string[]
+  savedFeatureReady: boolean
 }
 
 export type BlacklistPageData = {
   entries: BlacklistEntry[]
   master: BursaMaster[]
   latestDate: string | null
+}
+
+export type SavedTickerPageData = {
+  latestDate: string | null
+  rows: WhitelistRow[]
+  savedFeatureReady: boolean
 }
