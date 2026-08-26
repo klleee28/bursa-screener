@@ -1,26 +1,139 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@custom-variant dark (&:is(.dark *));
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--app-font-sans);
+  --font-mono: var(--app-font-mono);
+  --font-heading: var(--app-font-display);
+  --font-display: var(--app-font-display);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-positive: var(--positive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+:root {
+  --app-font-sans: "Arial Narrow", "Aptos", "Segoe UI", Arial, sans-serif;
+  --app-font-mono: "Cascadia Mono", "SFMono-Regular", Consolas, monospace;
+  --app-font-display: Georgia, "Times New Roman", serif;
+  --background: oklch(0.974 0.005 80);
+  --foreground: oklch(0.205 0.046 257);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.205 0.046 257);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.205 0.046 257);
+  --primary: oklch(0.205 0.065 257);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.955 0.006 75);
+  --secondary-foreground: oklch(0.205 0.046 257);
+  --muted: oklch(0.955 0.006 75);
+  --muted-foreground: oklch(0.5 0.025 257);
+  --accent: oklch(0.94 0.018 24);
+  --accent-foreground: oklch(0.43 0.18 25);
+  --destructive: oklch(0.49 0.196 25);
+  --positive: oklch(0.43 0.12 146);
+  --border: oklch(0.875 0.009 75);
+  --input: oklch(0.84 0.012 75);
+  --ring: oklch(0.38 0.08 257);
+  --radius: 0.5rem;
+  --sidebar: oklch(0.986 0.003 80);
+  --sidebar-foreground: oklch(0.205 0.046 257);
+  --sidebar-primary: oklch(0.49 0.196 25);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.94 0.018 24);
+  --sidebar-accent-foreground: oklch(0.43 0.18 25);
+  --sidebar-border: oklch(0.875 0.009 75);
+  --sidebar-ring: oklch(0.38 0.08 257);
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer base {
+  * { @apply border-border outline-ring/50; }
+  html { @apply font-sans; }
+  body { @apply bg-background text-foreground; font-feature-settings: "ss01" 1, "cv02" 1; }
+  button:not(:disabled), [role="button"]:not(:disabled) { cursor: pointer; }
+}
+
+@layer components {
+  .font-display { font-family: var(--app-font-display); }
+  .brand-lockup { @apply inline-flex items-center gap-3 text-xl font-semibold tracking-[-0.025em] text-foreground; font-family: var(--app-font-display); }
+  .brand-lockup-inverse { @apply text-primary-foreground; }
+  .brand-mark { @apply inline-grid size-10 place-items-center text-4xl font-bold leading-none text-destructive; font-family: var(--app-font-display); }
+  .brand-lockup-inverse .brand-mark { @apply text-primary-foreground; }
+  .sidebar-shell { @apply flex border-b border-sidebar-border bg-sidebar px-5 py-4 lg:sticky lg:top-0 lg:h-screen lg:flex-col lg:border-r lg:border-b-0 lg:px-4 lg:py-7; }
+  .sidebar-shell > .brand-lockup { @apply mr-auto lg:mx-3 lg:mb-12; }
+  .nav-link { @apply relative inline-flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground lg:w-full; }
+  .nav-link svg, .user-row svg { @apply size-5 shrink-0; }
+  .nav-link-active { @apply bg-sidebar-accent text-sidebar-accent-foreground; }
+  .nav-link-active::before { content: ""; @apply absolute inset-y-2 left-0 w-0.75 rounded-full bg-destructive; }
+  .user-row { @apply flex min-h-11 items-center gap-3 px-3 text-sm font-medium; }
+  .page-frame { @apply mx-auto w-full max-w-[1440px] px-5 py-8 sm:px-8 lg:px-12 lg:py-9 xl:px-16; }
+  .page-header { @apply flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between; }
+  .page-title { @apply font-display text-5xl font-semibold leading-none tracking-[-0.04em] sm:text-6xl; }
+  .page-description { @apply mt-3 text-sm leading-6 text-muted-foreground sm:text-base; }
+  .eod-date { @apply pt-2 text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground sm:text-sm; }
+  .metric-rail { @apply mt-10 grid grid-cols-3 divide-x divide-border border-y border-border py-5 sm:mt-12 sm:py-7; }
+  .metric-rail > div { @apply px-4 first:pl-0 sm:px-10 sm:first:pl-0; }
+  .metric-rail p { @apply text-xs font-medium text-muted-foreground sm:text-sm; }
+  .metric-rail strong { @apply mt-1 block font-display text-4xl font-semibold leading-none tracking-[-0.035em] sm:text-5xl; }
+  .table-toolbar { @apply mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between; }
+  .search-control { @apply h-11! w-full sm:max-w-xl; }
+  .filter-trigger { @apply h-11 min-w-40 justify-between sm:min-w-44; }
+  .filter-check { @apply grid size-4 shrink-0 place-items-center rounded-sm border border-input text-transparent; }
+  .filter-check svg { @apply size-3; }
+  .filter-check-active { @apply border-primary bg-primary text-primary-foreground; }
+  .data-table-shell, .form-surface { @apply overflow-hidden rounded-xl border border-border bg-card; }
+  .data-table-shell table { @apply min-w-[960px]; }
+  .data-table-shell thead tr { @apply hover:bg-transparent; }
+  .data-table-shell th { @apply h-13 bg-card px-5 text-xs font-semibold tracking-[0.01em] text-foreground; }
+  .data-table-shell td { @apply h-14 px-5 text-sm; }
+  .sort-button { @apply flex items-center gap-1.5 whitespace-nowrap text-left; }
+  .sort-button svg { @apply size-3.5 text-muted-foreground; }
+  .table-footer { @apply flex min-h-14 items-center justify-between border-t border-border px-5 text-xs text-muted-foreground; }
+  .section-toolbar { @apply flex flex-col gap-4 border-b border-border px-5 py-5 sm:flex-row sm:items-center sm:justify-between; }
+  .section-title { @apply font-display text-2xl font-semibold tracking-[-0.02em]; }
+  .form-surface { @apply p-5 sm:p-6; }
+  .blacklist-form-grid { display: grid !important; @apply mt-5 items-start gap-5 md:grid-cols-2 xl:grid-cols-[1.05fr_1.05fr_1.35fr_auto]; }
+  .blacklist-form-grid textarea { @apply min-h-20; }
+}
+
+@media (max-width: 1023px) {
+  .sidebar-shell nav { order: 3; width: 100%; margin-top: 0.75rem; }
+  .sidebar-shell { flex-wrap: wrap; }
+}
+
+@media (max-width: 639px) {
+  .sidebar-shell > .brand-lockup { width: 100%; margin-bottom: 0.75rem; }
+  .nav-link { flex: 1; justify-content: center; }
+  .metric-rail strong { font-size: 2rem; }
 }
