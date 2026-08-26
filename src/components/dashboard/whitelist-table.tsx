@@ -47,8 +47,17 @@ export function WhitelistTable({
   const deferredSearch = useDeferredValue(search)
   const [markets, setMarkets] = useState<string[]>([])
   const [sectors, setSectors] = useState<string[]>([])
+  const [savedTickerState, setSavedTickerState] = useState(() => new Set(savedTickerIds))
 
-  const savedTickers = useMemo(() => new Set(savedTickerIds), [savedTickerIds])
+  function handleSavedTickerChange(ticker: string, saved: boolean) {
+    setSavedTickerState((current) => {
+      const next = new Set(current)
+      if (saved) next.add(ticker)
+      else next.delete(ticker)
+      return next
+    })
+  }
+
   const columns = useMemo(() => columnHelper.columns([
     columnHelper.accessor("ticker", { header: "Ticker" }),
     columnHelper.accessor("name", { header: "Company", cell: ({ getValue }) => <span className="font-medium">{getValue()}</span> }),
@@ -67,20 +76,29 @@ export function WhitelistTable({
     columnHelper.display({
       id: "saved",
       header: mode === "saved" ? "Remove" : "Save",
-      cell: ({ row }) => <SavedTickerAction ticker={row.original.ticker} saved={savedTickers.has(row.original.ticker)} disabled={!savedFeatureReady} />,
+      cell: ({ row }) => (
+        <SavedTickerAction
+          ticker={row.original.ticker}
+          saved={savedTickerState.has(row.original.ticker)}
+          source={mode}
+          disabled={!savedFeatureReady}
+          onOptimisticChange={handleSavedTickerChange}
+        />
+      ),
     }),
-  ]), [mode, savedFeatureReady, savedTickers])
+  ]), [mode, savedFeatureReady, savedTickerState])
 
   const marketOptions = useMemo(() => Array.from(new Set(rows.map((row) => row.market))).sort(), [rows])
   const sectorOptions = useMemo(() => Array.from(new Set(rows.map((row) => row.sector))).sort(), [rows])
   const filteredRows = useMemo(() => {
     const query = deferredSearch.trim().toLowerCase()
     return rows.filter((row) => {
+      if (mode === "saved" && !savedTickerState.has(row.ticker)) return false
       if (markets.length && !markets.includes(row.market)) return false
       if (sectors.length && !sectors.includes(row.sector)) return false
       return !query || row.ticker.toLowerCase().includes(query) || row.name.toLowerCase().includes(query)
     })
-  }, [rows, deferredSearch, markets, sectors])
+  }, [rows, deferredSearch, markets, sectors, mode, savedTickerState])
 
   const table = useTable({
     features,

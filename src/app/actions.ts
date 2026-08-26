@@ -21,6 +21,7 @@ const blacklistSchema = z.object({
 })
 
 const tickerSchema = z.string().regex(/^\d{4,5}$/, "Select a valid Bursa ticker")
+const actionSourceSchema = z.enum(["whitelist", "saved"]).catch("whitelist")
 
 export async function signInAction(_state: ActionState, formData: FormData): Promise<ActionState> {
   if (isDevelopmentDemo()) redirect("/")
@@ -44,9 +45,20 @@ export async function signOutAction() {
 
 async function requireAuthenticatedClient() {
   const supabase = await createClient()
-  const { data, error } = await supabase.auth.getUser()
-  if (error || !data.user) redirect("/login")
-  return { supabase, user: data.user }
+  const { data, error } = await supabase.auth.getClaims()
+  const userId = data?.claims?.sub
+  if (error || !userId) redirect("/login")
+  return { supabase, userId }
+}
+
+function revalidateSavedTickerDestination(source: "whitelist" | "saved") {
+  // The current table updates optimistically. Only invalidate the other route,
+  // avoiding a full RSC reload of the page the user is interacting with.
+  revalidatePath(source === "saved" ? "/" : "/saved")
+}
+
+function isMissingSavedTickerFunction(error: { code?: string } | null) {
+  return error?.code === "42883" || error?.code === "PGRST202"
 }
 
 export async function addBlacklistAction(_state: ActionState, formData: FormData): Promise<ActionState> {
@@ -93,8 +105,19 @@ export async function saveTickerAction(_state: ActionState, formData: FormData):
   if (!ticker.success) return { error: ticker.error.issues[0]?.message ?? "Invalid Bursa ticker" }
   if (isDevelopmentDemo()) return { success: "Demo mode: ticker saved." }
 
-  const { supabase, user } = await requireAuthenticatedClient()
+  const source = actionSourceSchema.parse(formData.get("source"))
+  const { supabase, userId } = await requireAuthenticatedClient()
 
+  const rpcResult = await supabase.rpc("save_ticker", { p_ticker: ticker.data })
+  if (!rpcResult.error) {
+    if (rpcResult.data === "blacklisted") return { error: "Blacklisted tickers cannot be saved" }
+    if (rpcResult.data === "not_eligible") return { error: "Ticker is not in the ordinary-share master list" }
+    revalidateSavedTickerDestination(source)
+    return { success: rpcResult.data === "already_saved" ? "Ticker is already saved." : `${ticker.data} saved.` }
+  }
+  if (!isMissingSavedTickerFunction(rpcResult.error)) return { error: "Unable to save the ticker. Try again." }
+
+  // Backwards-compatible path until the performance migration is applied.
   const [masterResult, blacklistResult] = await Promise.all([
     supabase.from("bursa_master").select("ticker").eq("ticker", ticker.data).eq("is_ordinary", true).maybeSingle(),
     supabase.from("blacklist").select("ticker").eq("ticker", ticker.data).maybeSingle(),
@@ -103,13 +126,12 @@ export async function saveTickerAction(_state: ActionState, formData: FormData):
   if (blacklistResult.error) return { error: "Unable to verify the blacklist" }
   if (blacklistResult.data) return { error: "Blacklisted tickers cannot be saved" }
 
-  const { error } = await supabase.from("saved_tickers").insert({ user_id: user.id, ticker: ticker.data })
+  const { error } = await supabase.from("saved_tickers").insert({ user_id: userId, ticker: ticker.data })
   if (error?.code === "23505") return { success: "Ticker is already saved." }
   if (error?.code === "42P01" || error?.code === "PGRST205") return { error: "Apply the saved-tickers database migration first" }
   if (error) return { error: "Unable to save the ticker. Try again." }
 
-  revalidatePath("/")
-  revalidatePath("/saved")
+  revalidateSavedTickerDestination(source)
   return { success: `${ticker.data} saved.` }
 }
 
@@ -118,12 +140,20 @@ export async function removeSavedTickerAction(_state: ActionState, formData: For
   if (!ticker.success) return { error: ticker.error.issues[0]?.message ?? "Invalid Bursa ticker" }
   if (isDevelopmentDemo()) return { success: "Demo mode: ticker removed." }
 
-  const { supabase, user } = await requireAuthenticatedClient()
-  const { error } = await supabase.from("saved_tickers").delete().eq("user_id", user.id).eq("ticker", ticker.data)
+  const source = actionSourceSchema.parse(formData.get("source"))
+  const { supabase, userId } = await requireAuthenticatedClient()
+
+  const rpcResult = await supabase.rpc("remove_saved_ticker", { p_ticker: ticker.data })
+  if (!rpcResult.error) {
+    revalidateSavedTickerDestination(source)
+    return { success: `${ticker.data} removed.` }
+  }
+  if (!isMissingSavedTickerFunction(rpcResult.error)) return { error: "Unable to remove the ticker. Try again." }
+
+  const { error } = await supabase.from("saved_tickers").delete().eq("user_id", userId).eq("ticker", ticker.data)
   if (error?.code === "42P01" || error?.code === "PGRST205") return { error: "Apply the saved-tickers database migration first" }
   if (error) return { error: "Unable to remove the ticker. Try again." }
 
-  revalidatePath("/")
-  revalidatePath("/saved")
+  revalidateSavedTickerDestination(source)
   return { success: `${ticker.data} removed.` }
 }

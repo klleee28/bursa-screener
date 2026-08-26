@@ -32,7 +32,10 @@ export type Database = {
       }
     }
     Views: Record<string, never>
-    Functions: Record<string, never>
+    Functions: {
+      save_ticker: { Args: { p_ticker: string }; Returns: string }
+      remove_saved_ticker: { Args: { p_ticker: string }; Returns: boolean }
+    }
     Enums: Record<string, never>
     CompositeTypes: Record<string, never>
   }
