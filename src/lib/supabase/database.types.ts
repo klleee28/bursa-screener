@@ -30,11 +30,18 @@ export type Database = {
           { foreignKeyName: "saved_tickers_ticker_fkey"; columns: ["ticker"]; isOneToOne: false; referencedRelation: "bursa_master"; referencedColumns: ["ticker"] },
         ]
       }
+      ticker_aliases: {
+        Row: { old_ticker: string; new_ticker: string; effective_date: string | null; reason: string | null; created_at: string; applied_at: string | null }
+        Insert: { old_ticker: string; new_ticker: string; effective_date?: string | null; reason?: string | null; created_at?: string; applied_at?: string | null }
+        Update: { old_ticker?: string; new_ticker?: string; effective_date?: string | null; reason?: string | null; created_at?: string; applied_at?: string | null }
+        Relationships: [{ foreignKeyName: "ticker_aliases_old_ticker_fkey"; columns: ["old_ticker"]; isOneToOne: true; referencedRelation: "bursa_master"; referencedColumns: ["ticker"] }]
+      }
     }
     Views: Record<string, never>
     Functions: {
       save_ticker: { Args: { p_ticker: string }; Returns: string }
       remove_saved_ticker: { Args: { p_ticker: string }; Returns: boolean }
+      reconcile_ticker_aliases: { Args: Record<string, never>; Returns: Json }
     }
     Enums: Record<string, never>
     CompositeTypes: Record<string, never>

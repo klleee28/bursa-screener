@@ -58,6 +58,19 @@ The authenticated dashboard also has a **Refresh market data** button. It dispat
 
 The master source defaults to KLSE Screener's public roster. Set the optional repository Actions variable `BURSA_MASTER_SOURCE_URL` to replace it without changing code. The sync refuses to modify production when fewer than 800 eligible securities are returned.
 
+### Company and ticker changes
+
+Company-name, market, and sector changes are refreshed automatically from the master roster. Existing blacklist names are synchronized during the same run.
+
+Ticker-code changes require an explicit corporate-action mapping so the policy engine never guesses based on similar company names. After the replacement ticker has appeared in the master roster, register the mapping in the Supabase SQL Editor:
+
+```sql
+insert into public.ticker_aliases (old_ticker, new_ticker, effective_date, reason)
+values ('0001', '0002', '2026-08-26', 'Bursa ticker-code change');
+```
+
+On the next scheduled or manual refresh, saved and blacklist state moves to the final replacement ticker. Alias chains are supported, cycles fail the workflow, and mappings whose new ticker is not yet an ordinary share remain pending. Historical `eod_data` is deliberately retained under its original ticker for auditability.
+
 Run it locally with service-role credentials in your environment:
 
 ```bash
@@ -85,7 +98,7 @@ Do **not** add `SUPABASE_SERVICE_ROLE_KEY` to Vercel or prefix it with `NEXT_PUB
 
 - `src/proxy.ts` performs the optimistic route redirect and refreshes Supabase auth cookies.
 - Every Server Action independently verifies the authenticated user before mutation.
-- RLS is enabled and forced on all four public tables. Saved tickers are additionally scoped to `auth.uid()`.
+- RLS is enabled and forced on all five public tables. Saved tickers are additionally scoped to `auth.uid()`.
 - `anon` receives no table privileges; `authenticated` is covered by explicit policies.
 - The GitHub Actions service role uses Supabase's `BYPASSRLS` capability and is never exposed to the browser.
 

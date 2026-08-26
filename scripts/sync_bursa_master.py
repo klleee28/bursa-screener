@@ -151,6 +151,8 @@ def synchronize(supabase: "Client", records: list[dict[str, Any]]) -> None:
     supabase.table("bursa_master").update({"is_ordinary": False}).eq("is_ordinary", True).execute()
     for start in range(0, len(records), UPSERT_SIZE):
         supabase.table("bursa_master").upsert(records[start : start + UPSERT_SIZE], on_conflict="ticker").execute()
+    reconciliation = supabase.rpc("reconcile_ticker_aliases").execute()
+    LOGGER.info("Reconciled ticker aliases: %s", reconciliation.data)
 
 
 def main() -> None:
