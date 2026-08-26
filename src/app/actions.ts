@@ -7,7 +7,7 @@ import { z } from "zod"
 import { isDevelopmentDemo } from "@/lib/supabase/config"
 import { createClient } from "@/lib/supabase/server"
 
-export type ActionState = { error?: string; success?: string }
+export type ActionState = { error?: string; success?: string; url?: string }
 
 const loginSchema = z.object({
   email: z.email("Enter a valid email address"),
@@ -59,6 +59,49 @@ function revalidateSavedTickerDestination(source: "whitelist" | "saved") {
 
 function isMissingSavedTickerFunction(error: { code?: string } | null) {
   return error?.code === "42883" || error?.code === "PGRST202"
+}
+
+export async function triggerEodRefreshAction(state: ActionState, formData: FormData): Promise<ActionState> {
+  void state
+  void formData
+  if (isDevelopmentDemo()) return { success: "Demo mode: market data refresh queued." }
+
+  await requireAuthenticatedClient()
+
+  const token = process.env.GITHUB_ACTIONS_TOKEN
+  const repository = z.string().regex(/^[\w.-]+\/[\w.-]+$/).safeParse(process.env.GITHUB_REPOSITORY ?? "klleee28/bursa-screener")
+  if (!token) return { error: "Add GITHUB_ACTIONS_TOKEN to Vercel before using manual refresh." }
+  if (!repository.success) return { error: "GITHUB_REPOSITORY must use the owner/repository format." }
+
+  const [owner, repo] = repository.data.split("/")
+  const workflow = encodeURIComponent(process.env.GITHUB_EOD_WORKFLOW ?? "fetch_eod.yml")
+  const response = await fetch(
+    `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/actions/workflows/${workflow}/dispatches`,
+    {
+      method: "POST",
+      headers: {
+        Accept: "application/vnd.github+json",
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+        "User-Agent": "bursa-screener",
+        "X-GitHub-Api-Version": "2026-03-10",
+      },
+      body: JSON.stringify({ ref: process.env.GITHUB_EOD_REF ?? "main" }),
+      cache: "no-store",
+    },
+  )
+
+  if (response.status === 401 || response.status === 403) {
+    return { error: "GitHub rejected the token. Grant it Actions: write access to this repository." }
+  }
+  if (response.status === 404) return { error: "GitHub could not find the repository or EOD workflow." }
+  if (!response.ok) return { error: "Unable to queue the market data refresh. Try again." }
+
+  const run = response.status === 204 ? null : await response.json() as { html_url?: string }
+  return {
+    success: "Refresh queued. GitHub Actions will update the latest market data in a few minutes.",
+    url: run?.html_url,
+  }
 }
 
 export async function addBlacklistAction(_state: ActionState, formData: FormData): Promise<ActionState> {

@@ -54,6 +54,8 @@ The workflow at [`.github/workflows/fetch_eod.yml`](.github/workflows/fetch_eod.
 4. Fetches current market cap with bounded concurrency.
 5. Cleans non-finite values and upserts `(ticker, date)` rows in batches.
 
+The authenticated dashboard also has a **Refresh market data** button. It dispatches the same workflow, so the scheduled EOD refresh remains unchanged and the long-running download never runs inside Vercel. Create a fine-grained GitHub token restricted to this repository with **Actions: write**, then add it to Vercel as the private `GITHUB_ACTIONS_TOKEN` environment variable. If deploying a fork, also set `GITHUB_REPOSITORY` to `owner/repository`.
+
 The master source defaults to KLSE Screener's public roster. Set the optional repository Actions variable `BURSA_MASTER_SOURCE_URL` to replace it without changing code. The sync refuses to modify production when fewer than 800 eligible securities are returned.
 
 Run it locally with service-role credentials in your environment:
@@ -71,6 +73,11 @@ Set the following Vercel environment variables for Preview and Production:
 
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+- `GITHUB_ACTIONS_TOKEN` — private fine-grained token with repository **Actions: write**
+
+Optional for forks:
+
+- `GITHUB_REPOSITORY` — defaults to `klleee28/bursa-screener`
 
 Do **not** add `SUPABASE_SERVICE_ROLE_KEY` to Vercel or prefix it with `NEXT_PUBLIC_`. It belongs only in GitHub Actions.
 
