@@ -1,6 +1,6 @@
 "use client"
 
-import Link from "next/link"
+import Link, { useLinkStatus } from "next/link"
 import { usePathname } from "next/navigation"
 import { BookmarkIcon, ListFilterIcon, LogOutIcon, ShieldMinusIcon } from "lucide-react"
 
@@ -14,21 +14,32 @@ const navigation = [
   { href: "/blacklist", label: "Blacklist", icon: ShieldMinusIcon },
 ]
 
+function NavigationLinkContent({ icon: Icon, label }: { icon: typeof ListFilterIcon; label: string }) {
+  const { pending } = useLinkStatus()
+
+  return (
+    <>
+      <Icon />
+      <span>{label}</span>
+      {pending ? <span className="ml-auto size-1.5 animate-pulse rounded-full bg-current" aria-label="Loading" /> : null}
+    </>
+  )
+}
+
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
 
   return (
     <div className="min-h-screen bg-background lg:grid lg:grid-cols-[258px_minmax(0,1fr)]">
       <aside className="sidebar-shell">
-        <Link href="/" className="brand-lockup"><span className="brand-mark">B</span><span>Bursa Filter</span></Link>
+        <Link href="/" prefetch={true} className="brand-lockup"><span className="brand-mark">B</span><span>Bursa Filter</span></Link>
         <nav aria-label="Primary navigation" className="flex gap-2 lg:flex-col">
           {navigation.map((item) => {
             const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href)
             const Icon = item.icon
             return (
-              <Link key={item.href} href={item.href} aria-current={active ? "page" : undefined} className={cn("nav-link", active && "nav-link-active")}>
-                <Icon />
-                <span>{item.label}</span>
+              <Link key={item.href} href={item.href} prefetch={true} aria-current={active ? "page" : undefined} className={cn("nav-link", active && "nav-link-active")}>
+                <NavigationLinkContent icon={Icon} label={item.label} />
               </Link>
             )
           })}
