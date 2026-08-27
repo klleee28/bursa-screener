@@ -21,6 +21,10 @@ const blacklistSchema = z.object({
 })
 
 const tickerSchema = z.string().regex(/^\d{4,5}$/, "Select a valid Bursa ticker")
+const blacklistTickerSchema = z.object({
+  ticker: tickerSchema,
+  reason: z.string().trim().min(5, "Give a brief policy reason").max(500, "Keep the reason under 500 characters"),
+})
 const actionSourceSchema = z.enum(["whitelist", "saved"]).catch("whitelist")
 
 export async function signInAction(_state: ActionState, formData: FormData): Promise<ActionState> {
@@ -129,6 +133,39 @@ export async function addBlacklistAction(_state: ActionState, formData: FormData
 
   revalidatePath("/")
   revalidatePath("/blacklist")
+  return { success: `${master.ticker} added to the blacklist.` }
+}
+
+export async function blacklistTickerAction(_state: ActionState, formData: FormData): Promise<ActionState> {
+  const parsed = blacklistTickerSchema.safeParse(Object.fromEntries(formData))
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Check the blacklist reason" }
+  if (isDevelopmentDemo()) return { success: `Demo mode: ${parsed.data.ticker} added to the blacklist.` }
+
+  const { supabase, userId } = await requireAuthenticatedClient()
+  const { data: master, error: masterError } = await supabase
+    .from("bursa_master")
+    .select("ticker,name")
+    .eq("ticker", parsed.data.ticker)
+    .eq("is_ordinary", true)
+    .single()
+
+  if (masterError || !master) return { error: "Ticker is not in the ordinary-share master list" }
+
+  const { error } = await supabase.from("blacklist").insert({
+    ticker: master.ticker,
+    name: master.name,
+    reason: parsed.data.reason,
+  })
+  if (error?.code === "23505") return { error: "That ticker is already blacklisted" }
+  if (error) return { error: "Unable to add the exclusion. Try again." }
+
+  // A blacklisted ticker cannot remain in the user's saved execution list.
+  await supabase.from("saved_tickers").delete().eq("user_id", userId).eq("ticker", master.ticker)
+
+  // The whitelist row is removed optimistically in the browser. Invalidate only
+  // the other affected routes to avoid an expensive refresh of the active table.
+  revalidatePath("/blacklist")
+  revalidatePath("/saved")
   return { success: `${master.ticker} added to the blacklist.` }
 }
 

@@ -12,6 +12,7 @@ import {
 } from "@tanstack/react-table"
 import { ArrowDownIcon, ArrowUpDownIcon, ArrowUpIcon, ChevronLeftIcon, ChevronRightIcon, SearchIcon } from "lucide-react"
 
+import { BlacklistTickerAction } from "@/components/blacklist/blacklist-ticker-action"
 import { MultiSelectFilter } from "@/components/dashboard/multi-select-filter"
 import { SavedTickerAction } from "@/components/saved/saved-ticker-action"
 import { Button } from "@/components/ui/button"
@@ -30,6 +31,7 @@ const features = tableFeatures({
 
 const columnHelper = createColumnHelper<typeof features, WhitelistRow>()
 const numericColumns = ["close_price", "change_pct", "volume"]
+const actionColumns = ["saved", "blacklist"]
 const emptySavedTickerIds: string[] = []
 
 export function WhitelistTable({
@@ -48,11 +50,22 @@ export function WhitelistTable({
   const [markets, setMarkets] = useState<string[]>([])
   const [sectors, setSectors] = useState<string[]>([])
   const [savedTickerState, setSavedTickerState] = useState(() => new Set(savedTickerIds))
+  const [blacklistedTickerState, setBlacklistedTickerState] = useState(() => new Set<string>())
+  const [blacklistFeedback, setBlacklistFeedback] = useState<{ message: string; error: boolean }>()
 
   function handleSavedTickerChange(ticker: string, saved: boolean) {
     setSavedTickerState((current) => {
       const next = new Set(current)
       if (saved) next.add(ticker)
+      else next.delete(ticker)
+      return next
+    })
+  }
+
+  function handleBlacklistChange(ticker: string, blacklisted: boolean) {
+    setBlacklistedTickerState((current) => {
+      const next = new Set(current)
+      if (blacklisted) next.add(ticker)
       else next.delete(ticker)
       return next
     })
@@ -86,6 +99,18 @@ export function WhitelistTable({
         />
       ),
     }),
+    ...(mode === "whitelist" ? [columnHelper.display({
+      id: "blacklist",
+      header: "Blacklist",
+      cell: ({ row }) => (
+        <BlacklistTickerAction
+          ticker={row.original.ticker}
+          name={row.original.name}
+          onOptimisticChange={handleBlacklistChange}
+          onResult={(message, error) => setBlacklistFeedback({ message, error })}
+        />
+      ),
+    })] : []),
   ]), [mode, savedFeatureReady, savedTickerState])
 
   const marketOptions = useMemo(() => Array.from(new Set(rows.map((row) => row.market))).sort(), [rows])
@@ -93,12 +118,13 @@ export function WhitelistTable({
   const filteredRows = useMemo(() => {
     const query = deferredSearch.trim().toLowerCase()
     return rows.filter((row) => {
+      if (mode === "whitelist" && blacklistedTickerState.has(row.ticker)) return false
       if (mode === "saved" && !savedTickerState.has(row.ticker)) return false
       if (markets.length && !markets.includes(row.market)) return false
       if (sectors.length && !sectors.includes(row.sector)) return false
       return !query || row.ticker.toLowerCase().includes(query) || row.name.toLowerCase().includes(query)
     })
-  }, [rows, deferredSearch, markets, sectors, mode, savedTickerState])
+  }, [rows, deferredSearch, markets, sectors, mode, savedTickerState, blacklistedTickerState])
 
   const table = useTable({
     features,
@@ -126,6 +152,15 @@ export function WhitelistTable({
         </div>
       </div>
 
+      {blacklistFeedback ? (
+        <p
+          role={blacklistFeedback.error ? "alert" : "status"}
+          className={cn("mt-3 text-sm", blacklistFeedback.error ? "text-destructive" : "text-muted-foreground")}
+        >
+          {blacklistFeedback.message}
+        </p>
+      ) : null}
+
       <div className="data-table-shell">
         <div className="overflow-x-auto">
           <Table>
@@ -135,9 +170,9 @@ export function WhitelistTable({
                   {headerGroup.headers.map((header) => {
                     const sorted = header.column.getIsSorted()
                     return (
-                      <TableHead key={header.id} className={cn((numericColumns.includes(header.column.id) || header.column.id === "saved") && "text-right")}>
+                      <TableHead key={header.id} className={cn((numericColumns.includes(header.column.id) || actionColumns.includes(header.column.id)) && "text-right")}>
                         {header.isPlaceholder ? null : header.column.getCanSort() ? (
-                          <button type="button" className={cn("sort-button", (numericColumns.includes(header.column.id) || header.column.id === "saved") && "ml-auto")} onClick={header.column.getToggleSortingHandler()} disabled={!header.column.getCanSort()}>
+                          <button type="button" className={cn("sort-button", (numericColumns.includes(header.column.id) || actionColumns.includes(header.column.id)) && "ml-auto")} onClick={header.column.getToggleSortingHandler()} disabled={!header.column.getCanSort()}>
                             <table.FlexRender header={header} />
                             {sorted === "asc" ? <ArrowUpIcon /> : sorted === "desc" ? <ArrowDownIcon /> : <ArrowUpDownIcon />}
                           </button>
@@ -153,7 +188,7 @@ export function WhitelistTable({
             <TableBody>
               {table.getRowModel().rows.length ? table.getRowModel().rows.map((row) => (
                 <TableRow key={row.id}>
-                  {row.getAllCells().map((cell) => <TableCell key={cell.id} className={cn((numericColumns.includes(cell.column.id) || cell.column.id === "saved") && "text-right")}><table.FlexRender cell={cell} /></TableCell>)}
+                  {row.getAllCells().map((cell) => <TableCell key={cell.id} className={cn((numericColumns.includes(cell.column.id) || actionColumns.includes(cell.column.id)) && "text-right")}><table.FlexRender cell={cell} /></TableCell>)}
                 </TableRow>
               )) : (
                 <TableRow><TableCell colSpan={columns.length} className="h-36 text-center text-muted-foreground">{mode === "saved" && rows.length === 0 ? "No tickers saved yet. Save one from the whitelist." : "No securities match these filters."}</TableCell></TableRow>
