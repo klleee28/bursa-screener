@@ -14,6 +14,7 @@ import { ArrowDownIcon, ArrowUpDownIcon, ArrowUpIcon, ChevronLeftIcon, ChevronRi
 
 import { BlacklistTickerAction } from "@/components/blacklist/blacklist-ticker-action"
 import { MultiSelectFilter } from "@/components/dashboard/multi-select-filter"
+import { CsvExportButton, type CsvColumn } from "@/components/export/csv-export-button"
 import { SavedTickerAction } from "@/components/saved/saved-ticker-action"
 import { Button } from "@/components/ui/button"
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
@@ -33,6 +34,17 @@ const columnHelper = createColumnHelper<typeof features, WhitelistRow>()
 const numericColumns = ["close_price", "change_pct", "volume"]
 const actionColumns = ["saved", "blacklist"]
 const emptySavedTickerIds: string[] = []
+const whitelistExportColumns: CsvColumn<WhitelistRow>[] = [
+  { header: "Ticker", value: (row) => row.ticker },
+  { header: "Company", value: (row) => row.name },
+  { header: "Market", value: (row) => row.market },
+  { header: "Sector", value: (row) => row.sector },
+  { header: "Date", value: (row) => row.date },
+  { header: "Close Price", value: (row) => row.close_price },
+  { header: "1D Change %", value: (row) => row.change_pct },
+  { header: "Volume", value: (row) => row.volume },
+  { header: "Market Cap", value: (row) => row.market_cap },
+]
 
 export function WhitelistTable({
   rows,
@@ -149,6 +161,11 @@ export function WhitelistTable({
         <div className="flex flex-wrap gap-3">
           <MultiSelectFilter label="Markets" options={marketOptions} selected={markets} onChange={setMarkets} />
           <MultiSelectFilter label="Sectors" options={sectorOptions} selected={sectors} onChange={setSectors} />
+          <CsvExportButton
+            rows={filteredRows}
+            columns={whitelistExportColumns}
+            filename={mode === "saved" ? "bursa-saved-tickers" : "bursa-whitelist"}
+          />
         </div>
       </div>
 

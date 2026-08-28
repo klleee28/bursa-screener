@@ -16,12 +16,19 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
+import { CsvExportButton, type CsvColumn } from "@/components/export/csv-export-button"
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { formatCreatedDate } from "@/lib/format"
 import type { BlacklistEntry } from "@/lib/types"
 
 const pageSize = 25
+const blacklistExportColumns: CsvColumn<BlacklistEntry>[] = [
+  { header: "Ticker", value: (entry) => entry.ticker },
+  { header: "Company", value: (entry) => entry.name },
+  { header: "Reason", value: (entry) => entry.reason },
+  { header: "Added At", value: (entry) => entry.created_at },
+]
 
 export function BlacklistTable({ entries }: { entries: BlacklistEntry[] }) {
   const [search, setSearch] = useState("")
@@ -44,18 +51,21 @@ export function BlacklistTable({ entries }: { entries: BlacklistEntry[] }) {
     <section className="data-table-shell mt-5" aria-labelledby="current-exclusions-title">
       <div className="section-toolbar">
         <div><h2 id="current-exclusions-title" className="section-title">Current exclusions</h2><p className="mt-1 text-xs text-muted-foreground">{entries.length} securities</p></div>
-        <InputGroup className="w-full sm:w-72">
-          <InputGroupAddon><SearchIcon /></InputGroupAddon>
-          <InputGroupInput
-            value={search}
-            onChange={(event) => {
-              setSearch(event.target.value)
-              setPageIndex(0)
-            }}
-            placeholder="Search exclusions"
-            aria-label="Search exclusions"
-          />
-        </InputGroup>
+        <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
+          <InputGroup className="w-full sm:w-72">
+            <InputGroupAddon><SearchIcon /></InputGroupAddon>
+            <InputGroupInput
+              value={search}
+              onChange={(event) => {
+                setSearch(event.target.value)
+                setPageIndex(0)
+              }}
+              placeholder="Search exclusions"
+              aria-label="Search exclusions"
+            />
+          </InputGroup>
+          <CsvExportButton rows={filtered} columns={blacklistExportColumns} filename="bursa-blacklist" />
+        </div>
       </div>
       <div className="overflow-x-auto">
         <Table>
